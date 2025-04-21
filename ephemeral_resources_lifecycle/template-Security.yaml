@@ -1,0 +1,139 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform:
+  - AWS::LanguageExtensions
+Description: Lambda function and permissions for Ephemeral Resources control - To be deployed in Security Account.
+
+Parameters:
+  AccountIds:
+    Type: CommaDelimitedList
+    Description: List of account IDs with ephemeral resources
+  LambdaS3Bucket:
+    Type: String
+    Description: S3 bucket containing the Lambda deployment packages
+  TaggerLambdaKey:
+    Type: String
+    Description: S3 key for the tagger Lambda .zip file
+    Default: LambdaFunctions/ephemeral-tagger.zip
+  MonitorLambdaKey:
+    Type: String
+    Description: S3 key for the monitor Lambda .zip file
+    Default: LambdaFunctions/ephemeral-monitor.zip
+  EmailRecipient:
+    Type: String
+    Description: Email address to subscribe to the SNS topic. Enter only one, you can add more later.
+
+Resources:
+  Fn::ForEach::Accounts:
+    - AccountId
+    - !Ref AccountIds
+    - CrossAccountPolicy${AccountId}:
+        Type: AWS::IAM::Policy
+        Properties:
+          PolicyName: !Sub AllowCrossAccount_${AccountId}
+          Roles:
+            - !Ref EphemeralLambdaExecutionRole
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              # Statement 1 - Cross-account assume role
+              - Effect: Allow
+                Action: sts:AssumeRole
+                Resource: !Sub arn:aws:iam::${AccountId}:role/EphemeralCrossAccountRole
+
+  EphemeralLambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: EphemeralLambdaExecutionRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+  AssumeRolePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: AllowAssumeEphemeralRoles
+      Roles:
+        - !Ref EphemeralLambdaExecutionRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          # Statement 2 - EC2 and RDS permissions
+          - Effect: Allow
+            Action:
+              - ec2:CreateTags
+              - ec2:DescribeInstances
+              - ec2:DescribeTags
+              - rds:AddTagsToResource
+              - rds:DescribeDBInstances
+              - rds:ListTagsForResource
+            Resource: '*'
+          # Statement 3 - CloudWatch Logs permissions
+          - Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource: '*'
+          # Statement 4 - Security Hub permissions
+          - Effect: Allow
+            Action:
+              - securityhub:BatchImportFindings
+            Resource: '*'
+          # Statement 5 - SNS publish to the specific topic
+          - Effect: Allow
+            Action:
+              - sns:Publish
+            Resource: !Ref NotificationTopic
+
+  NotificationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: EphemeralResourceAlert
+
+  NotificationSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref NotificationTopic
+      Protocol: email
+      Endpoint: !Ref EmailRecipient
+
+  TaggerLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: EphemeralTaggerLambda
+      Role: !GetAtt EphemeralLambdaExecutionRole.Arn
+      Handler: lambda_function.lambda_handler
+      Runtime: python3.13
+      Code:
+        S3Bucket: !Ref LambdaS3Bucket
+        S3Key: !Ref TaggerLambdaKey
+
+  MonitorLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: EphemeralMonitorLambda
+      Role: !GetAtt EphemeralLambdaExecutionRole.Arn
+      Handler: index.handler
+      Runtime: python3.13
+      Code:
+        S3Bucket: !Ref LambdaS3Bucket
+        S3Key: !Ref MonitorLambdaKey
+      Environment:
+        Variables:
+          ACCOUNT_IDS: !Join
+            - ','
+            - !Ref AccountIds
+          SNS_TOPIC_ARN: !Ref NotificationTopic
+
+  Fn::ForEach::Acct:
+    - AccountId
+    - !Ref AccountIds
+    - 'CrossAccountLambda${AccountId}':
+        Type: AWS::Lambda::Permission
+        Properties:
+          Action: lambda:InvokeFunction
+          FunctionName: !Ref TaggerLambdaFunction
+          Principal: !Sub arn:aws:iam::${AccountId}:root
