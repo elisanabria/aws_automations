@@ -110,6 +110,7 @@ Resources:
       Code:
         S3Bucket: !Ref LambdaS3Bucket
         S3Key: !Ref TaggerLambdaKey
+      Timeout: 60
 
   MonitorLambdaFunction:
     Type: AWS::Lambda::Function
@@ -127,6 +128,7 @@ Resources:
             - ','
             - !Ref AccountIds
           SNS_TOPIC_ARN: !Ref NotificationTopic
+      Timeout: 300
 
   Fn::ForEach::Acct:
     - AccountId
