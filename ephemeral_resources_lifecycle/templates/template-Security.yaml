@@ -43,7 +43,7 @@ Resources:
               - Effect: Allow
                 Action: sts:AssumeRole
                 Resource: !Sub arn:aws:iam::${AccountId}:role/EphemeralCrossAccountRole
-
+                
   EphemeralLambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
@@ -55,6 +55,7 @@ Resources:
             Principal:
               Service: lambda.amazonaws.com
             Action: sts:AssumeRole
+            
   AssumeRolePolicy:
     Type: AWS::IAM::Policy
     Properties:
@@ -91,6 +92,26 @@ Resources:
             Action:
               - sns:Publish
             Resource: !Ref NotificationTopic
+            
+  EventBridgeInvokeLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: EventBridgeInvokeLambdaRole
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: scheduler.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: AllowInvokeAuditLambda
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !GetAtt MonitorLambdaFunction.Arn
 
   NotificationTopic:
     Type: AWS::SNS::Topic
@@ -144,3 +165,16 @@ Resources:
           Action: lambda:InvokeFunction
           FunctionName: !Ref TaggerLambdaFunction
           Principal: !Sub arn:aws:iam::${AccountId}:root
+
+  MonitorScheduler:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      FlexibleTimeWindow:
+        MaximumWindowInMinutes: 5
+        Mode: FLEXIBLE
+      Name: MonitorScheduler
+      ScheduleExpression: "cron(0 11 ? * * *)"
+      Target:
+        Arn: !GetAtt MonitorLambdaFunction.Arn
+        RoleArn: !GetAtt EventBridgeInvokeLambdaRole.Arn
+    
