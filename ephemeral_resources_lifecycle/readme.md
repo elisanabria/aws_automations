@@ -20,7 +20,7 @@ When a resource (EC2 or RDS) is created with the tag `Ephemeral=True`, this auto
 
 This diagram shows the flow of automation across member and security accounts, highlighting resource tagging, monitoring, and alerting mechanisms.
 
-![Architecture](ephemeral_resources_lifecycle/Architecture.png)
+![Architecture](Architecture.png)
 
 ## 📦 Components
 
