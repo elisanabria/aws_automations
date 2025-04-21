@@ -67,8 +67,8 @@ Use the `template-Members.yaml` to deploy:
 
 ### Step 3: Test the Setup
 Use the provided shell scripts to test the flow (CLI Scripts):
-./test-ec2.sh   # Creates a test EC2 instance
-./test-rds.sh   # Creates a test RDS instance
+- `test-ec2.sh` - Creates a test EC2 instance
+- `test-rds.sh` - Creates a test RDS instance
 
 To test the expiration, you can change the CreationDate Tag of the resource and run the Monitor Lambda
 
