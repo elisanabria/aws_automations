@@ -6,7 +6,7 @@ import os
 
 accounts = os.getenv('ACCOUNT_IDS').split(',')
 sns_topic_arn = os.getenv('SNS_TOPIC_ARN')
-expiration_days = os.getenv('EXPIRATION_DAYS')
+expiration_days = int(os.getenv('EXPIRATION_DAYS'))
 
 def handler(event, context):
 
