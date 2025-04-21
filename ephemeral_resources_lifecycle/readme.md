@@ -1,6 +1,6 @@
 # 🛡️ AWS Ephemeral Resource Control Automation
 
-This repository provides an automated solution for managing **ephemeral EC2 and RDS resources** in an AWS Organization. It ensures resources tagged as `Ephemeral=True` are monitored for expiration and trigger alerts when their lifespan exceeds the defined threshold (default: **30 days**).
+This section provides an automated solution for managing **ephemeral EC2 and RDS resources** in an AWS Organization. It ensures resources tagged as `Ephemeral=True` are monitored for expiration and trigger alerts when their lifespan exceeds the defined threshold (default: **30 days**).
 
 ## 🔍 Overview
 
