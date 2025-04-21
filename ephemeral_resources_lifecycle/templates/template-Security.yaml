@@ -18,6 +18,10 @@ Parameters:
     Type: String
     Description: S3 key for the monitor Lambda .zip file
     Default: LambdaFunctions/ephemeral-monitor.zip
+  ExpirationDays:
+    Type: Number
+    Description: Expiration time (in days) for the resources
+    Default: 30
   EmailRecipient:
     Type: String
     Description: Email address to subscribe to the SNS topic. Enter only one, you can add more later.
@@ -128,6 +132,7 @@ Resources:
             - ','
             - !Ref AccountIds
           SNS_TOPIC_ARN: !Ref NotificationTopic
+          EXPIRATION_DAYS: !Ref ExpirationDays
       Timeout: 300
 
   Fn::ForEach::Acct:
