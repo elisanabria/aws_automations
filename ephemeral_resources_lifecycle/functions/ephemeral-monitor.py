@@ -6,11 +6,12 @@ import os
 
 accounts = os.getenv('ACCOUNT_IDS').split(',')
 sns_topic_arn = os.getenv('SNS_TOPIC_ARN')
+expiration_days = os.getenv('EXPIRATION_DAYS')
 
 def handler(event, context):
 
     today = datetime.datetime.utcnow().date()
-    threshold = today - datetime.timedelta(days=30)
+    threshold = today - datetime.timedelta(days=expiration_days)
     finding = ""
 
     for account in accounts:
@@ -101,7 +102,7 @@ def notify(resource_arn, tags, resource_type, region, account_id, sh):
         "CreatedAt": datetime.datetime.utcnow().isoformat() + "Z",
         "UpdatedAt": datetime.datetime.utcnow().isoformat() + "Z",
         "Title": f"Ephemeral {resource_type} Expired",
-        "Description": f"{resource_type} {resource_arn} exceeded 30-day lifespan.",
+        "Description": f"{resource_type} {resource_arn} exceeded {expiration_days}-day lifespan.",
         "Severity": {"Label": "MEDIUM"},
         "Resources": [{
             "Type": f"Aws{resource_type}",
