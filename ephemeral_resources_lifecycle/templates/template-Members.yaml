@@ -1,0 +1,97 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Ephemeral EC2/RDS Resources control - Template for Member accounts
+
+Parameters:
+  SecurityAccountId:
+    Type: String
+    Description: Account ID of the Security account where the Lambda resides
+
+  LambdaArn:
+    Type: String
+    Description: Full ARN of the Tagger Lambda function in the Security account
+
+Resources:
+
+  EphemeralCrossAccountRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: EphemeralCrossAccountRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub arn:aws:iam::${SecurityAccountId}:root
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: AllowTagging
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:CreateTags
+                  - ec2:DescribeTags
+                  - ec2:DescribeInstances
+                  - rds:DescribeDBInstances
+                  - rds:AddTagsToResource
+                  - rds:ListTagsForResource
+                Resource: '*'
+        - PolicyName: AllowSecurityHub
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - securityhub:*
+                Resource: '*'
+
+  EventBridgeInvokeLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: EventBridgeInvokeLambdaRole
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: AllowInvokeAuditLambda
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !Ref LambdaArn
+
+  EphemeralRunInstancesRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: EphemeralEC2EventsTrigger
+      EventPattern:
+        detail:
+          eventSource:
+            - ec2.amazonaws.com
+          eventName:
+            - RunInstances
+      Targets:
+        - Arn: !Ref LambdaArn
+          Id: TagEphemeralEC2
+          RoleArn: !GetAtt EventBridgeInvokeLambdaRole.Arn
+
+  EphemeralCreateDBRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: EphemeralRDSEventsTrigger
+      EventPattern:
+        detail:
+          eventSource:
+            - rds.amazonaws.com
+          eventName:
+            - CreateDBInstance
+      Targets:
+        - Arn: !Ref LambdaArn
+          Id: TagEphemeralRDS
+          RoleArn: !GetAtt EventBridgeInvokeLambdaRole.Arn
