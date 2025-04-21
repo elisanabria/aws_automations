@@ -16,6 +16,12 @@ When a resource (EC2 or RDS) is created with the tag `Ephemeral=True`, this auto
      - **Email notification** via SNS.
      - **Security Hub Finding** marking the control as failed.
 
+## 🗺️ Architecture
+
+This diagram shows the flow of automation across member and security accounts, highlighting resource tagging, monitoring, and alerting mechanisms.
+
+![Architecture](ephemeral_resources_lifecycle/Architecture.png)
+
 ## 📦 Components
 
 ### 1. CloudFormation Templates
