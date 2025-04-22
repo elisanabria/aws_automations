@@ -58,15 +58,19 @@ Shell scripts to:
 
 ## 🚀 Deployment
 
-### Step 1: Deploy in Security Account
-Use the `template-Security.yaml` to deploy:
+### Step 1: Upload Deployment files to S3
+Download the files so you can reference them in your own Infrastructure. 
+- If you use a centralized bucket, remember to update your resource policy!
+
+### Step 2: Deploy in Security Account
+Use the `template-Security.yaml` as a Stack to deploy:
 - Tagger and Monitor Lambdas
 - IAM roles
 - SNS topic
 - EventBridge scheduler
 
-### Step 2: Deploy in Security Account
-Use the `template-Members.yaml` to deploy:
+### Step 3: Deploy in Member Accounts
+Use the `template-Members.yaml` as a StackSet to deploy in your target accounts:
 - EventBridge Rules to trigger Tagger Lambda
 - IAM roles
 - CrossAccount permissions for Tagger
