@@ -1,7 +1,7 @@
 # 🚀 AWS Automations
 
 **A library of AWS automation scripts built for Security in multi-account infrastructures.**  
-Modular, extensible, and production-ready — these automations are intended for helping with some Use Cases I've found in my not-that-awesome but curious path in the AWS Cloud Security area.
+Modular, extensible, and production-ready — these automations are intended for helping with some Use Cases I've found in my not-that-awesome but curious and enthusiastic path in the AWS Cloud Security area.
 
 ---
 
