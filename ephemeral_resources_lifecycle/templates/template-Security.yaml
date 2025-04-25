@@ -42,7 +42,7 @@ Resources:
               # Statement 1 - Cross-account assume role
               - Effect: Allow
                 Action: sts:AssumeRole
-                Resource: !Sub arn:aws:iam::${AccountId}:role/EphemeralCrossAccountRole
+                Resource: !Sub arn:aws:iam::${AccountId}:role/CrossAccountRole
                 
   EphemeralLambdaExecutionRole:
     Type: AWS::IAM::Role
