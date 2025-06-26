@@ -7,18 +7,19 @@ Parameters:
   OrgId:
     Type: String
     Description: AWS Organization ID (e.g., o-xxxxxxxxxx)
-
-  LambdaFunctionName:
-    Type: String
-    Default: CentralCloudTrailAlertHandler
-
   SNSTopicName:
     Type: String
     Default: CloudTrailSecurityAlerts
-
   AccountIds:
     Type: CommaDelimitedList
     Description: List of account IDs to monitor
+  LambdaS3Bucket:
+    Type: String
+    Description: S3 bucket containing the Lambda deployment packages
+  AlertHandlerKey:
+    Type: String
+    Description: S3 key for the Alert Handler Lambda .zip file
+    Default: LambdaFunctions/CentralCloudTrailAlertHandler.zip
 
 Resources:
   'Fn::ForEach::Accounts':
@@ -35,7 +36,7 @@ Resources:
   LambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub ${LambdaFunctionName}-Role
+      RoleName: 'CentralCloudTrailAlertLambdaExecutionRole'
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -67,88 +68,20 @@ Resources:
   CloudTrailAlertLambda:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: !Ref LambdaFunctionName
-      Handler: index.lambda_handler
+      FunctionName: CentralCloudTrailAlertHandler
       Role: !GetAtt LambdaExecutionRole.Arn
-      Runtime: python3.12
-      Timeout: 10
+      Handler: index.handler
+      Runtime: python3.13
       Code:
-        ZipFile: |
-          import boto3
-          import os
-          import logging
-          from datetime import datetime
-          import json
-          
-          logger = logging.getLogger()
-          logger.setLevel(logging.INFO)
-          sns = boto3.client('sns')
-          
-          SINGLE_LINE_LENGTH = 80
-          DOUBLE_LINE_LENGTH = 47
-          
-          HEADER_TEXT = 'Nueva alerta de CloudTrail\n'
-          
-          def lambda_handler(event, context):
-              
-              SNS_TOPIC_ARN = os.getenv('SNS_TOPIC_ARN')
-          
-              try:
-                  # Extract the CloudTrail event detail
-                  detail = event.get('detail', {})
-          
-                  # Extract relevant fields
-                  event_name = detail.get('eventName')
-                  event_source = detail.get('eventSource')
-                  user_identity = detail.get('userIdentity', {})
-                  account_id = detail.get('recipientAccountId') or user_identity.get('accountId')
-                  user_type = user_identity.get('type')
-                  user = user_identity.get('userName') or user_identity.get('principalId')
-                  source_ip = detail.get('sourceIPAddress')
-                  time = detail.get('eventTime')
-                  region = detail.get('awsRegion')
-                  request_params = detail.get('requestParameters')
-                  resources = detail.get('resources', [])
-                  
-                  # Format email content
-                  subject = f"Resonet CloudTrail Alert: {event_name} in {account_id}"
-                  message = f"""
-              🔔 CloudTrail Alert Triggered
-          
-                  📌 Event: {event_name}
-                  📌 Source: {event_source}
-                  📌 Account ID: {account_id}
-                  📌 Region: {region}
-                  👤 User Type: {user_type}
-                  👤 User: {user}
-                  🌍 Source IP: {source_ip}
-                  🕒 Time: {time}
-          
-                  🧾 Request Parameters:
-                  {json.dumps(request_params, indent=2)}
-          
-                  📦 Resources:
-                  {json.dumps(resources, indent=2)}
-                  """
-
-                  sns.publish(
-                      TopicArn=SNS_TOPIC_ARN,
-                      Subject=f"CloudTrail Alert: {event_name} in {account_id}",
-                      Message=message
-                  )
-                  
-                  return {
-                      'statusCode': 200,
-                      'body': json.dumps('Alert sent successfully!')
-                  }
-              
-              except Exception as e:
-                  print("Error:", str(e))
-                  raise
-
+        S3Bucket: !Ref LambdaS3Bucket
+        S3Key: !Ref AlertHandlerKey
       Environment:
         Variables:
+          ACCOUNT_IDS: !Join
+            - ','
+            - !Ref AccountIds
           SNS_TOPIC_ARN: !Ref SNSTopic
+      Timeout: 30
 
 Outputs:
   LambdaFunctionArn:
