@@ -1,0 +1,71 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  StackSet template to create an EventBridge rule and an IAM role to invoke a centralized Lambda
+  function in the Audit account. Intended for deployment across AWS Organization member accounts.
+
+Parameters:
+  AuditAccountLambdaArn:
+    Type: String
+    Description: ARN of the Lambda function deployed in the Audit account (from the Audit CloudFormation stack)
+
+  EventPattern:
+    Type: String
+    Default: '{"detail":{"eventName":["ConsoleLogin"]}}'
+    Description: The event pattern to match for triggering the rule
+
+  RuleName:
+    Type: String
+    Default: "CloudTrailConsoleLoginEventRule"
+
+Resources:
+
+  # IAM Role that allows EventBridge to invoke the centralized Lambda
+  EventBridgeInvokeLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: EventBridgeInvokeLambdaRole
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: AllowInvokeAuditLambda
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !Ref AuditAccountLambdaArn
+        - PolicyName: AllowCloudWatchLogging
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: 
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+                Resource: "arn:aws:logs:*:*:log-group:/aws/events/*:*"
+
+  # EventBridge Rule
+  CloudTrailEventBridgeRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Ref RuleName
+      EventPattern: !Ref EventPattern
+      State: ENABLED
+      Targets:
+        - Arn: !Ref AuditAccountLambdaArn
+          Id: "CloudTrailAlertLambdaTarget"
+          RoleArn: !GetAtt EventBridgeInvokeLambdaRole.Arn
+
+Outputs:
+  EventBridgeRuleArn:
+    Description: ARN of the created EventBridge Rule
+    Value: !GetAtt CloudTrailEventBridgeRule.Arn
+
+  RoleArn:
+    Description: ARN of the IAM Role used by EventBridge to invoke the Lambda
+    Value: !GetAtt EventBridgeInvokeLambdaRole.Arn
