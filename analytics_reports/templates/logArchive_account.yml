@@ -1,0 +1,217 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Lambda function and permissions for Analytics Reports - To be deployed in Log Archive Account.
+
+Parameters:
+  CloudTrailLogsBucket:
+    Type: String
+    Description: Name of S3 Bucket where CloudTrail Centralized logs are stored
+  LambdaS3Bucket:
+    Type: String
+    Description: S3 bucket containing the Lambda deployment packages
+  ReportsResultS3:
+    Type: String
+    Description: Name of S3 Buckets where query results will be stored
+  ReportsLambdaKey:
+    Type: String
+    Description: S3 key for the Reports Lambda .zip file
+    Default: LambdaFunctions/scheduled-reports.zip
+  IdentityStore:
+    Type: String
+    Description: Identity Store ID of your Organization (e.g., d-xxxxxxxxx)
+  MgmtAccount:
+    Type: String
+    Description: Management Account ID
+  AthenaDB:
+    Type: String
+    Description: Athena Database name
+  CWAccount:
+    Type: String
+    Description: Account ID containing the CloudWatch Logs to query
+  CWLogGroup:
+    Type: String
+    Description: CloudWatch LogGroup name to query
+  SNSTopicName:
+    Type: String
+    Default: CloudTrailSecurityAlerts
+  EmailRecipient:
+    Type: String
+    Description: Email address to subscribe to the SNS topic. Enter only one, you can add more later.
+  
+
+Resources:
+  S3Bucket:
+    Type: 'AWS::S3::Bucket'
+    DeletionPolicy: Delete
+    Properties:
+      BucketName: !Sub ReportsResultS3
+      
+  NotificationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: ScheduledReportsTopic
+    
+  NotificationSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref NotificationTopic
+      Protocol: email
+      Endpoint: !Ref EmailRecipient
+      
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: ReportsLambdaExecutionRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+            
+  CloudTrailLogsAccess:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: CloudTrailLogsAccess
+      Roles:
+        - !Ref LambdaExecutionRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:Get*
+              - s3:Describe*
+              - s3:List*
+            Resource: 
+              - !Sub arn:aws:s3:::${CloudTrailLogsBucket}
+              - !Sub arn:aws:s3:::${CloudTrailLogsBucket}/*
+  CloudWatchLogs:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: CloudWatchLogs
+      Roles:
+        - !Ref LambdaExecutionRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+              - logs:StartQuery
+              - logs:GetQueryResults
+            Resource: '*'
+            
+  CrossAccountCloudWatch:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: CrossAccountCloudWatch
+      Roles:
+        - !Ref LambdaExecutionRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - sts:AssumeRole
+            Resource: !Sub arn:aws:iam::${CWAccount}:role/Cloudwatch_ScheduledReports
+
+  CrossAccountIdentityStore:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: CrossAccountIdentityStore
+      Roles:
+        - !Ref LambdaExecutionRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - sts:AssumeRole
+            Resource: !Sub arn:aws:iam::${MgmtAccount}:role/Cloudwatch_ScheduledReports
+
+  ExecutionPermissions:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: ExecutionPermissions
+      Roles:
+        - !Ref LambdaExecutionRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - athena:*
+              - glue:Describe*
+              - glue:Get*
+              - glue:List*
+              - glue:BatchCreatePartition
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - s3:PutObject
+              - s3:Get*
+              - s3:List*
+            Resource:
+              - !Sub arn:aws:s3:::${ReportsResultS3}
+              - !Sub arn:aws:s3:::${ReportsResultS3}/*
+          - Effect: Allow
+            Action:
+              - sns:Publish
+            Resource:
+              - !Ref NotificationTopic
+
+            
+  EventBridgeInvokeLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: EventBridgeInvokeLambdaRole
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: scheduler.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: AllowInvokeAuditLambda
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !GetAtt MonitorLambdaFunction.Arn
+
+ScheduledReportsFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: ScheduledReportsFunction
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Handler: lambda_function.lambda_handler
+      Runtime: python3.13
+      Code:
+        S3Bucket: !Ref LambdaS3Bucket
+        S3Key: !Ref ReportsLambdaKey
+      Environment:
+        Variables:
+          SNS_TOPIC_ARN: !Ref NotificationTopic
+          IDENTITY_STORE: !Ref IdentityStore
+          MGMT_ACCT: !Ref MgmtAccount
+          ATHENA_DB_NAME: !Ref AthenaDB
+          CLOUDWATCH_ACCOUNT: !Ref CWAccount
+          CLOUDWATCH_LOG_GROUP: !Ref CWLogGroup
+      Timeout: 900
+
+  MonitorScheduler:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      FlexibleTimeWindow:
+        MaximumWindowInMinutes: 5
+        Mode: FLEXIBLE
+      Name: ReportsScheduler
+      ScheduleExpression: "cron(0 11 ? * * *)"
+      Target:
+        Arn: !GetAtt ScheduledReportsFunction.Arn
+        RoleArn: !GetAtt EventBridgeInvokeLambdaRole.Arn
+    
