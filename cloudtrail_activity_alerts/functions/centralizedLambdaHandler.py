@@ -13,23 +13,9 @@ DOUBLE_LINE_LENGTH = 47
 
 HEADER_TEXT = 'New CloudTrail Alert\n'
 
-# this function will add a horizontal line to the email
-def add_horizontal_line(text_body, line_char, line_length):
-    y = 0
-    while y <= line_length:
-        text_body += line_char
-        y += 1
-    text_body += '\n'
-    
-    return text_body
-
-def lambda_handler(event, context):
+def handler(event, context):
     
     SNS_TOPIC_ARN = os.getenv('SNS_TOPIC_ARN')
-    IAM_Events = ['CreateRole', 'DeleteRole', 'AddUserToRole', 'DeleteRolePolicy', 'DeleteUserPolicy', 'PutGroupPolicy', 'PutRolePolicy', 'PutUserPolicy', 'CreatePolicy', 'DeletePolicy', 'CreatePolicyVersion', 'DeletePolicyVersion', 'AttachRolePolicy', 'DetachRolePolicy', 'AttachUserPolicy', 'DetachUserPolicy', 'AttachGroupPolicy', 'DetachGroupPolicy', 'AddUsersToGroup', 'UpdateAssumeRolePolicy']
-    SourceIP_Excluded = ['ssm.amazonaws.com', 'sso.amazonaws.com']
-    send_alert_IAM = True
-    send_alert_others = True
 
     try:
         # Extract the CloudTrail event detail
@@ -48,9 +34,6 @@ def lambda_handler(event, context):
         request_params = detail.get('requestParameters')
         resources = detail.get('resources', [])
 
-        send_alert_IAM = event_name in IAM_Events and source_ip not in SourceIP_Excluded
-        send_alert_others = event_name not in IAM_Events
-        
         # Format email content
         subject = f"New CloudTrail Alert: {event_name} in {account_id}"
         message = f"""
@@ -71,22 +54,12 @@ def lambda_handler(event, context):
         📦 Resources:
         {json.dumps(resources, indent=2)}
         """
-
-        if send_alert_IAM :
-            # Publish to SNS - IAM Events
-            sns.publish(
-                TopicArn=SNS_TOPIC_ARN,
-                Subject=f"CloudTrail Alert: {event_name} in {account_id}",
-                Message=message
-            )
-        if send_alert_others :
-            # Publish to SNS - Other origins
-            sns.publish(
-                TopicArn=SNS_TOPIC_ARN,
-                Subject=f"CloudTrail Alert: {event_name} in {account_id}",
-                Message=message
-            )
-
+        # Publish to SNS
+        sns.publish(
+            TopicArn=SNS_TOPIC_ARN,
+            Subject=f"CloudTrail Alert: {event_name} in {account_id}",
+            Message=message
+        )
         return {
             'statusCode': 200,
             'body': json.dumps('Alert sent successfully!')
