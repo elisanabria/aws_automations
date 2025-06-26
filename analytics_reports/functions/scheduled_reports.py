@@ -25,11 +25,13 @@ CLOUDWATCH_OUTPUT_PREFIX = 'cloudwatch-results/'
 IDENTITY_STORE_OUTPUT_PREFIX = 'identitystore-results/'
 
 SNS_TOPIC_ARN = os.getenv('SNS_TOPIC_ARN')
-CLOUDWATCH_LOG_GROUP = os.getenv('CLOUDWATCH_LOG_GROUP')
 IDENTITY_STORE = os.getenv('IDENTITY_STORE')
 MGMT_ACCT = os.getenv('MGMT_ACCT')
-CLOUDWATCH_ACCOUNT = os.getenv('CLOUDWATCH_ACCOUNT') #This can be changed to an array if multiple CloudWatch logs need to be queried
 ATHENA_DB_NAME = os.getenv('ATHENA_DB_NAME')
+#These two can be changed to an array if multiple CloudWatch logs need to be queried
+CLOUDWATCH_ACCOUNT = os.getenv('CLOUDWATCH_ACCOUNT') 
+CLOUDWATCH_LOG_GROUP = os.getenv('CLOUDWATCH_LOG_GROUP')
+
 
 
 def assume_role(account_id, role_name, service_name):
