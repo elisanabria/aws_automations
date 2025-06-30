@@ -1,0 +1,41 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: IAM Role for getting CloudWatch logs - To be deployed in the account containing said roles, and assumed by Lambda.
+
+Parameters:
+  AccountID:
+    Type: String
+    Description: Account ID where Reports Lambda resides  
+  CWLogGroup:
+    Type: String
+    Description: CloudWatch LogGroup name to query
+
+Resources:
+  CloudWatchReportsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: Cloudwatch_Reports
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub arn:aws:iam::${AccountID}:root
+            Action: sts:AssumeRole
+            
+  CloudWatchPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: CloudWatchAccess
+      Roles:
+        - !Ref CloudWatchReportsRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - logs:GetLogEvents
+              - logs:StartQuery
+              - logs:GetQueryResults
+              - logs:DescribeLogGroups
+            Resource: !Sub arn:aws:logs:us-east-1:${AWS::AccountId}:log-group:${CWLogGroup}:*
+ 
