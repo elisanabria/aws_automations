@@ -248,7 +248,7 @@ def generate_presigned_url(s3_path, expiration=604800):
 
 def generate_report(queries_status):
     """Generate a detailed report including query, status, and presigned URL."""
-    report = "Reporte semanal: Queries de Athena/CloudWatch + Control de Usuarios\n"
+    report = "Weekly Report: Athena/CloudWatch Queries + User Inventory (From IAM Identity Center)\n"
     for query_status in queries_status:
         query = query_status['query']
         title = query_status['title']
@@ -285,7 +285,7 @@ def lambda_handler(event, context):
         {"title": "CW_Query Title", "query": "CW_Query"}
     ]
 
-    # Array of Athena query IDs to be executed. The function assumes they are in the same account as itself
+    # Array of Athena query IDs to be executed. The function assumes they are in the same account
     athena_query_ids = [
         "Query_ID_1",
         "Query_ID_2",
