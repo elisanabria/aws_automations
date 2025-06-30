@@ -11,7 +11,7 @@ Each folder contains a standalone automation focused on a specific AWS Security 
 
 | Automation | Description |
 |------------|-------------|
-| [`analytics-report`](./analytics_report) | Scheduled report based on Athena and CloudWatch queries execution + IAM Identity Center User inventory. |
+| [`analytics-reports`](./analytics_reports) | Scheduled report based on Athena and CloudWatch queries execution + IAM Identity Center User inventory. |
 | [`cloudtrail-activity-alerts`](./cloudtrail_activity_alerts) | Real-time alerts for sensitive CloudTrail events with centralized Lambda processing. |
 | [`ephemeral-resources-lifecycle`](./ephemeral_resources_lifecycle) | Monitors EC2 & RDS tagged as `Ephemeral=True` and triggers alerts after 30 days. |
 
