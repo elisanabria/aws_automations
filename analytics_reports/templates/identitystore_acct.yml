@@ -1,0 +1,37 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: IAM Role for getting Users from IAM Identity Center - To be deployed in the Mgmt Account, and assumed by Lambda.
+
+Parameters:
+  AccountID:
+    Type: String
+    Description: Account ID where Reports Lambda resides  
+
+Resources:
+  IdentityStoreRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: Lambda_Reports
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub arn:aws:iam::${AccountID}:root
+            Action: sts:AssumeRole
+            
+  IdentityStorePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: IdentityStorePolicy
+      Roles:
+        - !Ref IdentityStoreRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - identitystore:DescribeUser
+              - identitystore:ListUsers
+              - identitystore:GetUserId
+            Resource: '*'
+ 
