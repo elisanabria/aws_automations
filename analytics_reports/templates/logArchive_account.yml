@@ -203,7 +203,7 @@ ScheduledReportsFunction:
           CLOUDWATCH_LOG_GROUP: !Ref CWLogGroup
       Timeout: 900
 
-  MonitorScheduler:
+  ReportsScheduler:
     Type: AWS::Scheduler::Schedule
     Properties:
       FlexibleTimeWindow:
